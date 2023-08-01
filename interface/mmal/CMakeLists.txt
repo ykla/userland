@@ -3,7 +3,21 @@ if (NOT DEFINED LIBRARY_TYPE)
 set(LIBRARY_TYPE SHARED)
 endif (NOT DEFINED LIBRARY_TYPE)
 
-add_definitions(-Wall -Werror)
+add_definitions(-Wall -Werror -Wno-error=enum-conversion)
+
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    message(STATUS "${CMAKE_CXX_COMPILER_VERSION}")
+    execute_process(COMMAND ${CMAKE_CXX_COMPILER} -v
+        ERROR_VARIABLE _clangcxx_dumpedversion
+        ERROR_STRIP_TRAILING_WHITESPACE
+    )
+    string(REGEX REPLACE ".*clang version ([0-9]\\.[0-9]+).*" "\\1" _clangcxx_version ${_clangcxx_dumpedversion})
+    message(STATUS "Clang version : ${_clangcxx_version}")
+
+    if(_clangcxx_version VERSION_GREATER 3.2)
+        add_definitions(-Wno-error=undefined-inline)
+    endif()
+endif()
 
 add_library(mmal SHARED util/mmal_util.c)
 

@@ -36,7 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdint.h>
 #endif
 
-#include <linux/ioctl.h>
+#include <sys/ioctl.h>
 
 /* ---- Constants and Types ---------------------------------------------- */
 

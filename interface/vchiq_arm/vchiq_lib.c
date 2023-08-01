@@ -568,7 +568,15 @@ vchiq_get_client_id(VCHIQ_SERVICE_HANDLE_T handle)
    if (!service)
       return VCHIQ_ERROR;
 
-   return ioctl(service->fd, VCHIQ_IOC_GET_CLIENT_ID, service->handle);
+   /*
+    * FIXME FREEBSD:
+    *  Due to differences in Linux and FreeBSD ioctl return path
+    *  the actual value returned from ioctl handler is set to
+    *  errno while ioctl result is -1 or 0
+    */
+   ioctl(service->fd, VCHIQ_IOC_GET_CLIENT_ID, service->handle);
+
+   return (errno);
 }
 
 void *
@@ -950,7 +958,7 @@ vchi_msg_dequeue( VCHI_SERVICE_HANDLE_T handle,
       RETRY(ret, ioctl(service->fd, VCHIQ_IOC_DEQUEUE_MESSAGE, &args));
       if (ret >= 0)
       {
-         *actual_msg_size = ret;
+         *actual_msg_size = args.bufsize;
          ret = 0;
       }
    }
@@ -1501,6 +1509,7 @@ completion_thread(void *arg)
    VCHIQ_AWAIT_COMPLETION_T args;
    VCHIQ_COMPLETION_DATA_T completions[8];
    void *msgbufs[8];
+   int ret;
 
    static const VCHI_CALLBACK_REASON_T vchiq_reason_to_vchi[] =
    {
@@ -1537,12 +1546,12 @@ completion_thread(void *arg)
          }
       }
 
-      RETRY(count, ioctl(instance->fd, VCHIQ_IOC_AWAIT_COMPLETION, &args));
+      RETRY(ret, ioctl(instance->fd, VCHIQ_IOC_AWAIT_COMPLETION, &args));
 
-      if (count <= 0)
+      if (ret != 0)
          break;
 
-      for (i = 0; i < count; i++)
+      for (i = 0; i < args.count; i++)
       {
          VCHIQ_COMPLETION_DATA_T *completion = &completions[i];
          VCHIQ_SERVICE_T *service = (VCHIQ_SERVICE_T *)completion->service_userdata;
@@ -1564,7 +1573,6 @@ completion_thread(void *arg)
          if ((completion->reason == VCHIQ_SERVICE_CLOSED) &&
              instance->use_close_delivered)
          {
-            int ret;
             RETRY(ret,ioctl(service->fd, VCHIQ_IOC_CLOSE_DELIVERED, service->handle));
          }
       }
@@ -1722,7 +1730,7 @@ fill_peek_buf(VCHI_SERVICE_T *service,
 
          if (ret >= 0)
          {
-            service->peek_size = ret;
+            service->peek_size = args.bufsize;
             ret = 0;
          }
          else
